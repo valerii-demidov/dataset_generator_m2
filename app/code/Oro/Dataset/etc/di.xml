@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright (c) 2015 Oro Inc. DBA MageCore (http://www.magecore.com)
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="Magento\Cron\Model\ConfigInterface" type="Magento\Cron\Model\Config" />
+    <preference for="Magento\Framework\Shell\CommandRendererInterface" type="Magento\Framework\Shell\CommandRenderer" />
+    <type name="Magento\Framework\Console\CommandList">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="datasetCommand" xsi:type="object">Oro\Dataset\Console\Command\DatasetCommand</item>
+                <item name="exportCategories" xsi:type="object">Oro\Dataset\Console\Command\ExportCategories</item>
+                <item name="exportAttributes" xsi:type="object">Oro\Dataset\Console\Command\ExportAttributes</item>
+                <item name="exportAttributeToSetRelation" xsi:type="object">Oro\Dataset\Console\Command\ExportAttributeToSetRelation</item>
+                <item name="exportGatlingData" xsi:type="object">Oro\Dataset\Console\Command\ExportGatlingData</item>
+            </argument>
+        </arguments>
+    </type>
+</config>

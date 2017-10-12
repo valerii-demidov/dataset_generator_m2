@@ -1,0 +1,4 @@
+$ MAGE_PATH='/home/ocz/projects/pp_m220/'
+
+for import:
+$ for file in `cat large_complex_03.dat | tr '\r\n' ' ' `; do mkdir -p "${MAGE_PATH}pub/media/catalog/product${file:0:4}" && ln -s "${MAGE_PATH}fake_image.jpg" "${MAGE_PATH}pub/media/catalog/product${file}"; done

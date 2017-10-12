@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright (c) 2015 Oro Inc. DBA MageCore (http://www.magecore.com)
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
+    <module name="Oro_Dataset" setup_version="1.0.0">
+        <sequence>
+            <module name="Magento_Store"/>
+        </sequence>
+    </module>
+</config>
