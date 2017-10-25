@@ -32,6 +32,7 @@ class ExportGatlingData extends Command
     const EXPORT_PRODUCT_SIMPLE = 'importExport/Gatling/product_simple.csv';
     const EXPORT_PRODUCT_CONFIGURABLE = 'importExport/Gatling/product_configurable.csv';
     const EXPORT_LAYER = 'importExport/Gatling/layer.csv';
+    const EXPORT_CATALOG_SEARCH = 'importExport/Gatling/catalog_search.csv';
 
     const CATEGORY_PARENT_ID = 2;
 
@@ -52,6 +53,7 @@ class ExportGatlingData extends Command
 
     private $productConfigurableHeader = ['product_id', 'url', 'options'];
     private $productSimpleHeader = ['product_id', 'url'];
+    private $catalogSearchHeader = ['sku', 'product_name','product_short_description'];
     private $layeredHeader = ['category_id', 'url', 'count', 'attribute', 'option'];
 
     /**
@@ -65,7 +67,6 @@ class ExportGatlingData extends Command
         \Magento\Framework\App\State $appSate,
         \Magento\Catalog\Model\Layer\ResolverFactory $layerResolverFactory,
         \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $categoryCollectionFactory
-
     ) {
         $this->objectManager = $objectManager;
         $this->catalogProductCollection = $catalogProductCollection;
@@ -93,9 +94,87 @@ class ExportGatlingData extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $this->exportConfigurableProducts();
-        $this->exportSimpleProducts();
+        //$this->exportConfigurableProducts();
+        //$this->exportSimpleProducts();
         //$this->exportLayeredFilters();
+        $this->exportCatalogSearch();
+    }
+
+    protected function exportCatalogSearch()
+    {
+        $path = static::EXPORT_CATALOG_SEARCH;
+        echo 'writing data to '.$path.PHP_EOL;
+        $this->prepareDir($path);
+
+        //prepare collection
+        $catalogProductCollection = $this->catalogProductCollection
+            ->create()
+            ->addAttributeToSelect('sku')
+            ->addAttributeToSelect('name')
+            ->addAttributeToSelect('short_description')
+            ->addAttributeToFilter('status', \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_ENABLED)
+            ->joinField(
+                'is_in_stock',
+                'cataloginventory_stock_item',
+                'is_in_stock',
+                'product_id=entity_id',
+                'is_in_stock=1',
+                '{{table}}.stock_id=1'
+            )
+            ->addAttributeToFilter('type_id', ['eq' => ProductType::TYPE_SIMPLE]);
+
+        //set limit
+        if ($this->useCollectionLimit) {
+            $catalogProductCollection
+                ->setPageSize($this->collectionLimitSize)
+                ->setCurPage(1);
+        }
+
+        //prepare collection
+        $catalogProductConfigurableCollection = $this->catalogProductCollection
+            ->create()
+            ->addAttributeToSelect('sku')
+            ->addAttributeToSelect('name')
+            ->addAttributeToSelect('short_description')
+            ->addAttributeToFilter('status', \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_ENABLED)
+            ->joinField(
+                'is_in_stock',
+                'cataloginventory_stock_item',
+                'is_in_stock',
+                'product_id=entity_id',
+                'is_in_stock=1',
+                '{{table}}.stock_id=1'
+            )
+            ->addAttributeToFilter('type_id', ['eq' => ConfigurableProductType::TYPE_CODE]);
+
+        //set limit
+        if ($this->useCollectionLimit) {
+            $catalogProductConfigurableCollection
+                ->setPageSize($this->collectionLimitSize)
+                ->setCurPage(1);
+        }
+
+
+        $file = fopen($path, 'w');
+        $this->prepareHeader($file, $this->catalogSearchHeader);
+        foreach ($catalogProductCollection as $product) {
+            $data = [
+                'sku' => $product->getSku(),
+                'product_name' => $product->getName(),
+                'product_short_description' => $product->getShortDescription(),
+            ];
+            fputcsv($file, $data);
+        }
+
+        foreach ($catalogProductConfigurableCollection as $product) {
+            $data = [
+                'sku' => $product->getSku(),
+                'product_name' => $product->getName(),
+                'product_short_description' => $product->getShortDescription(),
+            ];
+            fputcsv($file, $data);
+        }
+        fclose($file);
     }
 
     protected function exportLayeredFilters()
