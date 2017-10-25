@@ -44,6 +44,7 @@ class ExportGatlingData extends Command
 
     private $objectManager;
     private $catalogProductCollection;
+    private $productRepository;
 
     // for layered navigation
     private $filterableAttributes;
@@ -66,7 +67,8 @@ class ExportGatlingData extends Command
         \Magento\Catalog\Model\Layer\Category\FilterableAttributeList $filterableAttributeList,
         \Magento\Framework\App\State $appSate,
         \Magento\Catalog\Model\Layer\ResolverFactory $layerResolverFactory,
-        \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $categoryCollectionFactory
+        \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $categoryCollectionFactory,
+        \Magento\Catalog\Model\ProductRepository $productRepository
     ) {
         $this->objectManager = $objectManager;
         $this->catalogProductCollection = $catalogProductCollection;
@@ -75,6 +77,7 @@ class ExportGatlingData extends Command
         $this->appState = $appSate;
         $this->layerResolverFactory = $layerResolverFactory;
         $this->categoryCollectionFactory = $categoryCollectionFactory;
+        $this->productRepository = $productRepository;
 
         parent::__construct();
     }
@@ -94,10 +97,10 @@ class ExportGatlingData extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        //$this->exportConfigurableProducts();
+        $this->exportConfigurableProducts();
         //$this->exportSimpleProducts();
         //$this->exportLayeredFilters();
-        $this->exportCatalogSearch();
+        //$this->exportCatalogSearch();
     }
 
     protected function exportCatalogSearch()
@@ -320,11 +323,16 @@ class ExportGatlingData extends Command
         $configurableOptions = $product->getTypeInstance()->getConfigurableOptions($product);
         foreach ($configurableOptions as $attributeId => $options) {
             foreach ($options as $optionData) {
-                $productConfigurableVariants[$optionData['sku']][] = sprintf(
-                    "%s=%s",
-                    $attributeId,
-                    $optionData['value_index']
-                );
+                $currentSimpleProductOption = $this->productRepository->get($optionData['sku']);
+                $productStatus = $currentSimpleProductOption->getStatus();
+                $quantityAndStockStatus = $currentSimpleProductOption->getQuantityAndStockStatus();
+                if ($productStatus == 1 && $quantityAndStockStatus['is_in_stock']) {
+                    $productConfigurableVariants[$optionData['sku']][] = sprintf(
+                        "%s=%s",
+                        $attributeId,
+                        $optionData['value_index']
+                    );
+                }
             }
         }
 
