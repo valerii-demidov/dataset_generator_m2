@@ -14,9 +14,9 @@ class frontendLoadTest extends Simulation
     .disableFollowRedirect
 
   val dataDir                 = System.getProperty("dataDir", "m2ce").toString
-  val nbUsers                 = System.getProperty("users", "1").toInt
+  val nbUsers                 = System.getProperty("users", "20").toInt
   val nbRamp                  = System.getProperty("ramp", "30").toInt
-  val nbDuring                = System.getProperty("during", "3").toInt
+  val nbDuring                = System.getProperty("during", "10").toInt
   val domain                  = System.getProperty("domain", "ppm220.loc").toString
   val useSecure               = System.getProperty("useSecure", "0").toInt
   val projectName             = System.getProperty("project", "Magento 2.2.0 EE").toString
@@ -29,6 +29,7 @@ class frontendLoadTest extends Simulation
   val feedProductSimple       = csv(dataDir + "/product_simple.csv").random
   val feedProductGrouped      = csv(dataDir + "/product_grouped.csv").random
   val feedProductConfigurable = csv(dataDir + "/product_configurable.csv").random
+  val feedCatalogSearch       = csv(dataDir + "/catalog_search.csv").random
 
   val random                  = new java.util.Random
 
@@ -159,17 +160,9 @@ class frontendLoadTest extends Simulation
             .formParam( """qty""", "1")
             .formParam( """selected_configurable_option""", "")
             .formParam( """related_product""", "")
-            .check( bodyString.saveAs( "RESPONSE_DATA_SIMPLE" ) )
             .check(status.is(200))
             .check(regex("""\[\]"""))
           )
-        .exec(
-          { session =>
-            println(session("product_id").as[String])
-            println(session("RESPONSE_DATA_SIMPLE").as[String])
-            session
-          }
-        )
         .exec(ajax.loadSections("cart%2Cmessages", false))
       }
 
@@ -238,16 +231,8 @@ class frontendLoadTest extends Simulation
               val result = (keys zip values).toMap
               result
             })
-            .check( bodyString.saveAs( "RESPONSE_DATA" ) )
             .check(status.is(200))
             .check(regex("""\[\]"""))
-        )
-        .exec(
-          { session =>
-            println(session("RESPONSE_DATA").as[String])
-            println(session("options").as[String])
-            session
-          }
         )
         .exec(ajax.loadSections("cart%2Cmessages", false))
       }
@@ -261,6 +246,7 @@ class frontendLoadTest extends Simulation
             http("Category Page")
               .get("http://${domain}/${url}")
               .check(status.is(200))
+              .check(bodyString.saveAs("RESPONSE_DATA"))
           )
         )
       }
@@ -273,6 +259,41 @@ class frontendLoadTest extends Simulation
             .check(regex("""<span>Remove This Item</span>""").find(0).exists)
         )
       }
+    }
+  }
+
+  /**
+    * Search pages
+    */
+  object search {
+    def bySku = {
+      feed(feedCatalogSearch)
+      .exec(
+        http("Search Page: by sku")
+          .get("http://${domain}/catalogsearch/result/?q=${sku}")
+          .check(status.is(200))
+          .check(regex("""<strong>Search results for: &#039;${sku}&#039;</strong>"""))
+      )
+    }
+
+    def byName = {
+      feed(feedCatalogSearch)
+      .exec(
+        http("Search Page: by name")
+          .get("http://${domain}/catalogsearch/result/?q=${product_name}")
+          .check(status.is(200))
+          .check(regex("""<strong>Search results for: &#039;${product_name}&#039;</strong>"""))
+      )
+    }
+
+    def byShortDescription = {
+      feed(feedCatalogSearch)
+      .exec(
+        http("Search Page: by short_description")
+          .get("http://${domain}/catalogsearch/result/?q=${product_short_description}")
+          .check(status.is(200))
+          .check(regex("""<strong>Search results for: &#039;${product_short_description}&#039;</strong>"""))
+      )
     }
   }
 
@@ -522,6 +543,18 @@ class frontendLoadTest extends Simulation
       .exec(checkout.onepage.placeOrder)
       .exec(checkout.onepage.success)
     }
+
+    def browseSearch = {
+      exec(initSession)
+      .exec(cms.homepage)
+      .exec(ajax.firstRequest)
+      .pause(minPause, maxPause)
+      .exec(search.bySku)
+      .pause(minPause, maxPause)
+      .exec(search.byName)
+      .pause(minPause, maxPause)
+      .exec(search.byShortDescription)
+    }
   }
 
   /**
@@ -531,10 +564,11 @@ class frontendLoadTest extends Simulation
     def default = scenario(projectName + " Load Test" + scenarioSuffix)
       .during(nbDuring minutes) {
         randomSwitch(
-          /*40d -> exec(group.abandonedCart),
+          40d -> exec(group.abandonedCart),
           25d -> exec(group.browseCatalog),
-          25d -> exec(group.browseLayer),*/
-          10d  -> exec(group.checkoutGuest)
+          25d -> exec(group.browseLayer),
+          10d  -> exec(group.checkoutGuest),
+          10d -> exec(group.browseSearch)
         )
       }
   }
